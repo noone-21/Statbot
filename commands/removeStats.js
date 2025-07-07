@@ -24,15 +24,49 @@ export default {
     const parsed = parseRawStats(raw);
     const total = parsed.length;
 
+    const enriched = parsed.map(entry => ({
+      ...entry,
+      guildId: message.guild.id
+    }));
+
     const loading = await message.reply(`⏳ Removing stats for ${total} players...`);
 
-    for (const entry of parsed) {
-      const player = await Player.findOne({ discordId: entry.discordId });
+    for (const entry of enriched) {
+      const player = await Player.findOne({ discordId: entry.discordId, guildId: message.guild.id });
       if (!player) continue;
 
       for (const key of Object.keys(entry)) {
-        if (key !== "discordId") player.stats[key] = Math.max(0, player.stats[key] - entry[key]);
+        if (["discordId", "recentMatches", "highScore", "highestWickets"].includes(key)) continue;
+
+        // Subtract safely without going negative
+        player.stats[key] = Math.max(0, (player.stats[key] || 0) - entry[key]);
       }
+
+      // Remove matching recent match if present
+      const matchToRemove = entry.recentMatches?.[0];
+
+      if (matchToRemove) {
+        const index = player.stats.recentMatches.findIndex(m =>
+          Number(m.runs) === Number(matchToRemove.runs) &&
+          Number(m.balls) === Number(matchToRemove.balls) &&
+          Number(m.wickets) === Number(matchToRemove.wickets) &&
+          Number(m.deliveries) === Number(matchToRemove.deliveries) &&
+          Number(m.conceded) === Number(matchToRemove.conceded)
+        );
+
+        if (index !== -1) {
+          player.stats.recentMatches.splice(index, 1);
+        } else {
+          console.log("No match found. Check types or structure.");
+        }
+      }
+
+
+      // Recalculate highScore and highestWickets (since one match is being removed)
+      player.stats.highScore = Math.max(...player.stats.recentMatches.map(m => m.runs), 0);
+      player.stats.highestWickets = Math.max(...player.stats.recentMatches.map(m => m.wickets), 0);
+
+      // console.log(player.stats)
 
       await player.save();
     }

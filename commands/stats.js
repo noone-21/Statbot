@@ -37,29 +37,37 @@ export default {
     const player = await Player.findOne({ discordId: userId });
     const s = player?.stats || {
       runs: 0,
-      balls: 0,
+      ballsPlayed: 0,
       conceded: 0,
-      deliveries: 0,
+      ballsBowled: 0,
       wickets: 0,
-      ducks: 0
+      ducks: 0,
+      fifties: 0,
+      hundreds: 0,
+      highScore: 0,
+      highestWickets: 0,
+      threeWicketHauls: 0,
+      fiveWicketHauls: 0,
+      matches: 0,
+      batInnings: 0,
+      bowlInnings: 0,
+      recentMatches: []
     };
 
     // Basic Calcs
-    const avg = s.balls > 0 ? (s.runs / s.balls).toFixed(1) : "0.0";
-    const sr = s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(1) : "0.0";
+    const sr = s.ballsPlayed > 0 ? ((s.runs / s.ballsPlayed) * 100).toFixed(1) : "0.0";
     const bowlAvg = s.wickets > 0 ? (s.conceded / s.wickets).toFixed(1) : "0.0";
-    const eco = s.deliveries > 0 ? ((s.conceded / s.deliveries) * 6).toFixed(1) : "0.0";
+    const batAvg = s.batInnings > 0 ? (s.runs / s.batInnings).toFixed(1) : "0.0";
+    const eco = s.ballsBowled > 0 ? ((s.conceded / s.ballsBowled) * 6).toFixed(1) : "0.0";
 
-    const fifties = s.runs >= 50 ? Math.floor(s.runs / 50) : 0;
-    const hundreds = s.runs >= 100 ? Math.floor(s.runs / 100) : 0;
-    const highScore = s.runs; // Optional: store max score later
+    const fifties = s.fifties || 0;
+    const hundreds = s.hundreds || 0;
 
-    const threeW = s.wickets >= 3 ? Math.floor(s.wickets / 3) : 0;
-    const fiveW = s.wickets >= 5 ? Math.floor(s.wickets / 5) : 0;
-    const best = s.wickets > 0 ? `${Math.min(6, s.wickets)}` : "0";
+    const threeW = s.threeWicketHauls || 0;
+    const fiveW = s.fiveWicketHauls || 0;
 
-    const battingInnings = s.balls > 0 ? 1 : 0;
-    const bowlingInnings = s.deliveries > 0 ? 1 : 0;
+    const battingInnings = s.batInnings || 0;
+    const bowlingInnings = s.bowlInnings || 0;
 
     // Rating Calculations
     // BATTING RATING
@@ -68,7 +76,7 @@ export default {
       (parseFloat(sr) * 0.75) +           // Strike Rate
       (fifties * 5) +                     // Bonus for 50s
       (hundreds * 10) +                   // Bonus for 100s
-      ((parseFloat(avg) || 0) * 2)        // Batting avg
+      ((parseFloat(batAvg) || 0) * 2)        // Batting avg
     ) - (s.ducks * 4);                    // Duck penalty
 
     const batRating = Math.min(99, Math.round(60 + (batScore / 10))); // Base 60, scaled
@@ -76,7 +84,7 @@ export default {
     // BOWLING RATING
     const bowlScore = (
       (s.wickets * 4) +
-      ((s.deliveries > 0 ? (18 - parseFloat(eco)) * 5 : 0)) +  // Economy reward
+      ((s.ballsBowled > 0 ? (18 - parseFloat(eco)) * 5 : 0)) +  // Economy reward
       ((s.wickets > 0 ? (35 - parseFloat(bowlAvg)) * 3 : 0)) + // Bowling avg reward
       (threeW * 4) + (fiveW * 6)
     ) - (s.conceded / 10); // Penalty for conceding runs
@@ -85,28 +93,62 @@ export default {
 
     // ALL-ROUNDER RATING
     const allRounder = Math.min(99, Math.round((batRating + bowlRating) / 2));
-    const impactScore = Math.round(batScore + bowlScore);
+
+    //--------------------------------
+
+    // Final Impact Score
+    const impactScoreRaw = (
+      Math.pow(s.runs, 0.6) +
+      Math.pow(s.wickets * 5, 0.8) +
+      fifties * 12 +
+      hundreds * 25 +
+      (batAvg > 2 ? Math.pow(batAvg, 1.2) : -Math.pow(2 - batAvg, 2)) +
+      (sr > 80 ? Math.pow(sr / 10, 1.3) : -Math.pow((80 - sr) / 10, 2)) +
+      (eco < 7 ? Math.pow(8 - eco, 1.5) : -Math.pow(eco - 7, 1.5)) +
+      (bowlAvg < 25 ? Math.pow(30 - bowlAvg, 1.2) : -Math.pow(bowlAvg - 25, 1.2)) -
+      Math.pow(s.ducks, 1.3) * 5
+    );
+
+    // Ensure impact score is never negative
+    const impactScore = Math.round(Math.max(0, impactScoreRaw));
+
+    //PLAYER ROLE
+    let role = "";
+    let roleRating = 0;
+
+    const ratingDiff = Math.abs(batRating - bowlRating);
+
+    if (ratingDiff <= 10 && batRating >= 65 && bowlRating >= 65) {
+      role = "All-Rounder ⚡";
+      roleRating = allRounder;
+    } else if (batRating > bowlRating) {
+      role = "Batter 🏏";
+      roleRating = batRating;
+    } else {
+      role = "Bowler 🎯";
+      roleRating = bowlRating;
+    }
 
     const embed = new EmbedBuilder()
       .setAuthor({
         name: `${user.username}'s HandCricket Stats`,
         iconURL: user.displayAvatarURL()
       })
-      .setTitle(`📅 Season 1 | Matches: ${battingInnings + bowlingInnings} | Impact: ${impactScore}`)
-      .setDescription(`All-Rounder ⚡ ${allRounder} | Bat: ${batRating} | Bowl: ${bowlRating}`)
+      .setTitle(`📅 Season 1 | Matches: ${s.matches} | Impact: ${impactScore}`)
+      .setDescription(`${role} ${roleRating} | Bat: ${batRating} | Bowl: ${bowlRating}`)
       .addFields(
         {
           name: "🏏 **Batting**",
           value: [
             `🧢 Innings: **${battingInnings}**`,
             `💥 Runs: **${s.runs}**`,
-            `⚾ Balls: **${s.balls}**`,
-            `📊 Avg: **${avg}**`,
+            `⚾ Balls: **${s.ballsPlayed}**`,
+            `📊 Avg: **${batAvg}**`,
             `🚀 SR: **${sr}**`,
             `🌟 50s: **${fifties}**`,
             `💯 100s: **${hundreds}**`,
             `🦆 Ducks: **${s.ducks}**`,
-            `🏆 High Score: **${highScore}**`
+            `🏆 High Score: **${s.highScore}**`
           ].join("\n"),
           inline: true
         },
@@ -115,13 +157,13 @@ export default {
           value: [
             `🧢 Innings: **${bowlingInnings}**`,
             `🔥 Wickets: **${s.wickets}**`,
-            `⚾ Balls: **${s.deliveries}**`,
+            `⚾ Balls: **${s.ballsBowled}**`,
             `📊 Avg: **${bowlAvg}**`,
             `⏳ Eco: **${eco}**`,
             `🎯 3w: **${threeW}**`,
             `🏅 5w: **${fiveW}**`,
             `🏃 Runs Conceded: **${s.conceded}**`,
-            `🌟 Best: **${best}**`
+            `🌟 Best: **${s.highestWickets}**`
           ].join("\n"),
           inline: true
         }
