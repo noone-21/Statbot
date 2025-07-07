@@ -1,0 +1,27 @@
+{
+  "name": "handcricket-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot for managing handcricket stats, stocks, and economy.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "handcricket",
+    "stocks",
+    "cricket",
+    "economy"
+  ],
+  "author": "You",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.11.0",
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.3.1",
+    "nodemon": "^3.1.10"
+  }
+}
