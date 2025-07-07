@@ -8,6 +8,9 @@ export default {
       return message.reply("Only the bot owner can reset stats.");
     }
 
+    // Send initial message while user waits
+    const statusMessage = await message.reply("⏳ Resetting all player stats and stock prices. Please wait...");
+
     const players = await Player.find();
 
     for (const player of players) {
@@ -26,6 +29,7 @@ export default {
       await player.save();
     }
 
-    message.reply("🧹 All stats and stock prices have been reset.");
+    // Update the message when complete
+    await statusMessage.edit("🧹 All stats and stock prices have been reset.");
   }
 };
