@@ -5,8 +5,8 @@ export default {
   name: "removestats",
   description: "Remove stats by replying to a message with raw stats",
   async execute(message) {
-    if (message.author.id !== process.env.OWNER_ID) {
-      return message.reply("Only the bot owner can run this command.");
+    if (!message.member.permissions.has('Administrator')) {
+      return message.reply("Only the admin can run this command.");
     }
 
     const repliedMsg = message.reference

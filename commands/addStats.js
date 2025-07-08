@@ -5,8 +5,8 @@ export default {
   name: "addstats",
   description: "Add raw stats by replying to a message containing them",
   async execute(message) {
-    if (message.author.id !== process.env.OWNER_ID) {
-      return message.reply("Only the bot owner can run this command.");
+    if (!message.member.permissions.has('Administrator')) {
+      return message.reply("Only the administrator can run this command.");
     }
 
     const repliedMsg = message.reference
@@ -34,7 +34,7 @@ export default {
     const loading = await message.reply(`⏳ Adding ${total}/${total} stats...`);
 
     for (const entry of enriched) {
-      const player = await Player.findOne({ discordId: entry.discordId }) || new Player({
+      const player = await Player.findOne({ discordId: entry.discordId, guildId: message.guild.id }) || new Player({
         discordId: entry.discordId,
         guildId: message.guild.id,
         stats: { runs: 0, balls: 0, conceded: 0, deliveries: 0, wickets: 0, ducks: 0, fifties: 0, hundreds: 0, threeWicketHauls: 0, fiveWicketHauls: 0, matches: 0, batInnings: 0, bowlInnings: 0, recentMatches: [] },

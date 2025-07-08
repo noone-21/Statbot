@@ -8,7 +8,7 @@ import { getPrefix } from "./utils/getPrefix.js";
 
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,GatewayIntentBits.GuildMembers] });
 client.commands = new Collection();
 
 const __filename = fileURLToPath(import.meta.url);

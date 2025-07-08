@@ -10,23 +10,40 @@ import {
 export default {
   name: "leaderboard",
   description:
-    "Paginated leaderboard with dropdown to switch between runs, wickets, and stock price",
+    "Paginated leaderboard with dropdown to switch between runs, wickets, and more",
   async execute(message) {
+    // Map dropdown options to database fields
     const TYPES = {
       runs: "🏏 Runs",
       wickets: "🎯 Wickets",
-      impact: "💥 Impact",
-      avg: "📊 Bat Avg",
       highScore: "🔝 High Score",
-      mostWickets: "🎳 Most Wickets",
-      "100s": "💯 Centuries",
-      "50s": "5️⃣0️⃣ Half Centuries",
-      "5w": "5️⃣ Five Wickets",
-      "3w": "3️⃣ Three Wickets",
+      highestWickets: "🎳 Most Wickets",
+      hundreds: "💯 Centuries",
+      fifties: "5️⃣0️⃣ Half Centuries",
+      fiveWicketHauls: "5️⃣ Five Wickets hauls",
+      threeWicketHauls: "3️⃣ Three Wickets hauls",
       ducks: "🦆 Ducks",
       conceded: "🎯 Runs Conceded",
-      deliveries: "🏏 Balls Bowled",
-      balls: "🏏 Balls Played",
+      ballsBowled: "🏏 Balls Bowled",
+      ballsPlayed: "🏏 Balls Played",
+      matches: "🏆 Matches Played",
+    };
+
+    // Field mapping to database schema
+    const FIELD_MAPPING = {
+      runs: "stats.runs",
+      wickets: "stats.wickets",
+      highScore: "stats.highScore",
+      highestWickets: "stats.highestWickets",
+      hundreds: "stats.hundreds",
+      fifties: "stats.fifties",
+      fiveWicketHauls: "stats.fiveWicketHauls",
+      threeWicketHauls: "stats.threeWicketHauls",
+      ducks: "stats.ducks",
+      conceded: "stats.conceded",
+      ballsBowled: "stats.ballsBowled",
+      ballsPlayed: "stats.ballsPlayed",
+      matches: "stats.matches",
     };
 
     const EMOJIS = {
@@ -39,18 +56,17 @@ export default {
     const TYPE_COLORS = {
       runs: 0xe74c3c, // Red
       wickets: 0x2ecc71, // Green
-      impact: 0xe67e22, // Orange
-      avg: 0x3498db, // Blue
       highScore: 0x9b59b6, // Purple
-      mostWickets: 0x1abc9c, // Turquoise
-      "100s": 0xf1c40f, // Yellow
-      "50s": 0xd35400, // Dark Orange
-      "5w": 0x27ae60, // Dark Green
-      "3w": 0x16a085, // Light Green
+      highestWickets: 0x1abc9c, // Turquoise
+      hundreds: 0xf1c40f, // Yellow
+      fifties: 0xd35400, // Dark Orange
+      fiveWicketHauls: 0x27ae60, // Dark Green
+      threeWicketHauls: 0x16a085, // Light Green
       ducks: 0x7f8c8d, // Gray
       conceded: 0xc0392b, // Dark Red
-      deliveries: 0x8e44ad, // Dark Purple
-      balls: 0x2980b9, // Dark Blue
+      ballsBowled: 0x8e44ad, // Dark Purple
+      ballsPlayed: 0x2980b9, // Dark Blue
+      matches: 0x3498db, // Blue
     };
 
     // Fun cricket quotes to display at random
@@ -61,6 +77,37 @@ export default {
       "Cricket is not just a game, it's a way of life.",
       "The essence of cricket is not merely taking wickets and scoring runs.",
       "Cricket is a game that teaches you the importance of teamwork.",
+      "Every ball is a new opportunity.",
+      "In cricket, patience is a virtue.",
+      "A good cricketer is always learning.",
+      "Cricket is a sport that unites nations.",
+      "The thrill of cricket lies in its unpredictability.",
+      "Cricket is a game of skill, strategy, and sportsmanship.",
+      "In cricket, every player has a role to play.",
+      "Cricket is a sport that transcends boundaries.",
+      "The beauty of cricket is in its simplicity and complexity.",
+      "Cricket is a game where every run counts.",
+      "In cricket, the mind is as important as the body.",
+      "Cricket is a sport that brings people together.",
+      "The spirit of cricket is about respect and fair play.",
+      "Cricket is a game of passion and dedication.",
+      "In cricket, every match is a new challenge.",
+      "Cricket is a sport that teaches you resilience.",
+      "The joy of cricket is in the journey, not just the destination.",
+      "Cricket is a game that celebrates diversity.",
+      "In cricket, every player has the potential to be a hero.",
+      "Cricket is a sport that inspires generations.",
+      "The magic of cricket lies in its ability to create unforgettable moments.",
+      "Cricket is a game that tests your character and skill.",
+      "In cricket, teamwork makes the dream work.",
+      "Cricket is a sport that teaches you humility and respect.",
+      "The essence of cricket is in its traditions and values.",
+      "Cricket is a game that requires both mental and physical strength.",
+      "In cricket, every ball is a new beginning.",
+      "Cricket is a sport that fosters camaraderie and friendship.",
+      "The beauty of cricket is in its unpredictability and excitement.",
+      "Cricket is a game that challenges you to be your best.",
+      "In cricket, every player has a story to tell.",
     ];
 
     let selectedType = "runs";
@@ -74,8 +121,8 @@ export default {
     );
 
     const fetchPlayers = async (type) => {
-      const sortField = type === "price" ? "stock.price" : `stats.${type}`;
-      return await Player.find()
+      const sortField = FIELD_MAPPING[type] || `stats.${type}`;
+      return await Player.find({ guildId: message.guild.id })
         .sort({ [sortField]: -1 })
         .limit(50);
     };
@@ -109,12 +156,13 @@ export default {
 
       if (authorIndex === -1) return null;
 
+      const getValue = (player, type) => {
+        return player.stats[type];
+      };
+
       return {
         position: authorIndex + 1,
-        value:
-          selectedType === "price"
-            ? formatNumber(allPlayers[authorIndex].stock.price) + " coins"
-            : formatNumber(allPlayers[authorIndex].stats[selectedType]),
+        value: formatNumber(getValue(allPlayers[authorIndex], selectedType)),
         player: allPlayers[authorIndex],
       };
     };
@@ -127,34 +175,33 @@ export default {
       const typeLabel = TYPES[selectedType] || selectedType;
       const typeColor = TYPE_COLORS[selectedType] || 0x3498db;
 
+      const getValue = (player, type) => {
+        return player.stats[type];
+      };
+
       // Check if all players have zero values
       const allZero = players.every((p) => {
-        const value =
-          selectedType === "price" ? p.stock.price : p.stats[selectedType];
+        const value = getValue(p, selectedType);
         return !value || value === 0;
       });
 
       let list = "";
       if (allZero) {
-        list = "❌ **Empty Leaderboard** ❌\nNo players have recorded any stats for this category yet. Be the first to make your mark!";
+        list =
+          "❌ **Empty Leaderboard** ❌\nNo players have recorded any stats for this category yet. Be the first to make your mark!";
       } else {
         players.forEach((p, i) => {
           const index = start + i + 1;
-          const value =
-            selectedType === "price"
-              ? `${formatNumber(p.stock.price)} coins`
-              : formatNumber(p.stats[selectedType]);
+          const value = formatNumber(getValue(p, selectedType));
           // Skip players with zero values
-          if (value === "0" || value === "0 coins") return;
+          if (value === "0") return;
 
           const rankEmoji = EMOJIS[index] || `\`${index}.\``;
           const playerName = p.name || p.username || `Unknown Player`;
 
-          // Changed separator from "—" to ": \t"
           if (index <= 3) {
             list += `${rankEmoji} **${playerName}** : \t **${value}**\n`;
           } else {
-            // For ranks beyond top 3, use normal formatting
             list += `${rankEmoji} ${playerName} : \t ${value}\n`;
           }
 
@@ -166,7 +213,8 @@ export default {
 
         // If all entries were skipped due to zero values
         if (!list) {
-          list = "❌ **Empty Leaderboard** ❌\nNo players have recorded any stats for this category yet. Be the first to make your mark!";
+          list =
+            "❌ **Empty Leaderboard** ❌\nNo players have recorded any stats for this category yet. Be the first to make your mark!";
         }
       }
 
@@ -176,8 +224,7 @@ export default {
         authorPosition &&
         (authorPosition.position < start + 1 ||
           authorPosition.position > end) &&
-        authorPosition.value !== "0" &&
-        authorPosition.value !== "0 coins"
+        authorPosition.value !== "0"
       ) {
         authorInfo = `\n━━━━━━━━━━━━━━━━━━━━━\n**Your Position:** #${authorPosition.position} with ${authorPosition.value}`;
       }
@@ -211,15 +258,19 @@ export default {
           .setDisabled(page === 0),
 
         new ButtonBuilder()
-          .setCustomId("refresh")
-          .setEmoji("🔄")
-          .setStyle(ButtonStyle.Success),
-
-        new ButtonBuilder()
           .setCustomId("next")
           .setLabel("Next ▶")
           .setStyle(ButtonStyle.Primary)
-          .setDisabled((page + 1) * perPage >= allPlayers.length)
+          .setDisabled(
+            allPlayers.length <= perPage ||
+              (page + 1) * perPage >= allPlayers.length ||
+              !allPlayers
+                .slice((page + 1) * perPage, (page + 2) * perPage)
+                .some((p) => {
+                  const value = p.stats[selectedType];
+                  return value && value > 0;
+                })
+          )
       ),
       new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -256,10 +307,10 @@ export default {
         if (i.customId === "next") page++;
         if (i.customId === "prev") page--;
         if (i.customId === "refresh") {
+          await i.deferUpdate();
           allPlayers = await fetchPlayers(selectedType);
           await getUsernames();
-          await i.deferUpdate();
-          await i.editReply({ content: "🔄 Leaderboard refreshed!" });
+          // Don't need editReply after deferUpdate - the update call below will show the refreshed data
         }
       }
 
@@ -278,15 +329,19 @@ export default {
 
     collector.on("end", async () => {
       try {
+        // Only remove the components but keep the original embed
+        const currentEmbed = sent.embeds[0];
         await sent.edit({
           components: [],
-          embeds: [
-            getEmbed().setFooter({
-              text: "This leaderboard is no longer interactive",
-            }),
-          ],
+          embeds: [currentEmbed],
         });
-      } catch {}
+      } catch (error) {
+        console.log("Failed to update message after collector ended");
+      }
+    });
+    // Ensure the collector is cleaned up properly
+    collector.on("dispose", () => {
+      console.log("Collector disposed");
     });
   },
 };
