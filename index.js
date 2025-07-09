@@ -20,6 +20,13 @@ const commandFiles = fs.readdirSync(path.join(__dirname, "commands")).filter(fil
 for (const file of commandFiles) {
   const command = await import(`./commands/${file}`);
   client.commands.set(command.default.name, command.default);
+  
+  // Register command aliases
+  if (command.default.aliases && Array.isArray(command.default.aliases)) {
+    command.default.aliases.forEach(alias => {
+      client.commands.set(alias, command.default);
+    });
+  }
 }
 
 client.on("ready", () => {

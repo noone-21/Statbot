@@ -3,6 +3,8 @@ import calculatePrice from "../utils/calculatePrice.js";
 
 export default {
   name: "updatemarket",
+  aliases: ["updatestocks", "refreshmarket", "marketupdate"],
+  usage: "+updatemarket",
   description: "Update stock prices based on stats",
   async execute(message) {
     if (message.author.id !== process.env.OWNER_ID) {

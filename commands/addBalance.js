@@ -2,6 +2,8 @@ import User from "../models/User.js";
 
 export default {
   name: "addbalance",
+  aliases: ["addbal", "givebalance"],
+  usage: "<@user> <amount>",
   description: "Admin: Add balance to user",
   async execute(message, args) {
     if (message.author.id !== process.env.OWNER_ID) return message.reply("Only the bot owner can use this.");

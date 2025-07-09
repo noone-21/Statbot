@@ -3,6 +3,8 @@ import { EmbedBuilder } from "discord.js";
 
 export default {
   name: "stats",
+  aliases: ["playerstats", "cricketstats", "handcricketstats"],
+  usage: "+stats [@user | userID | username]",
   description: "View detailed stats of yourself or another player",
   async execute(message, args) {
     let userId = null;

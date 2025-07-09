@@ -22,6 +22,7 @@ const quotes = [
 
 export default {
   name: "balance",
+  aliases: ["bal", "coins", "checkbalance"],
   description: "Check your coin balance",
   async execute(message) {
     const user =

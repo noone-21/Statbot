@@ -2,6 +2,8 @@ import Prefix from "../models/Prefix.js";
 
 export default {
   name: "prefix",
+  aliases: ["setprefix", "changeprefix"],
+  usage: "<newPrefix>",
   description: "Change the command prefix",
   async execute(message, args) {
     if (!message.member.permissions.has("Administrator")) {

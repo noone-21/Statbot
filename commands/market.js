@@ -2,6 +2,8 @@ import Player from "../models/Player.js";
 
 export default {
   name: "market",
+  aliases: ["stockmarket", "marketplace", "exchange"],
+  usage: "+market",
   description: "Display stock prices of all players",
   async execute(message) {
     const players = await Player.find().sort({ "stock.price": -1 }).limit(10);

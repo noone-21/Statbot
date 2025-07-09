@@ -8,6 +8,7 @@ const formatNumber = (num) => {
 
 export default {
   name: "price",
+  aliases: ["stockprice", "currentprice", "marketinfo"],
   description: "Check the current stock price and market information of a player",
   usage: "+price @user",
   async execute(message, args) {

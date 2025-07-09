@@ -4,6 +4,8 @@ import Player from "../models/Player.js";
 
 export default {
   name: "sell",
+  aliases: ["divest", "offload"],
+  usage: "+sell @player [amount]",
   description: "Sell player stocks",
   async execute(message, args) {
     if (!args.length) {

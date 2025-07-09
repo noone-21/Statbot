@@ -3,6 +3,8 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "disc
 
 export default {
   name: "resetstats",
+  aliases: ["resetall", "resetseason", "newseason"],
+  usage: "+resetstats",
   description: "Reset all player stats and stock prices (new season)",
   async execute(message) {
     if (message.author.id !== process.env.OWNER_ID) {

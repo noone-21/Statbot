@@ -9,6 +9,8 @@ import {
 
 export default {
   name: "leaderboard",
+  aliases: ["lb", "stats", "leaderboards", "cricketlb"],
+  
   description:
     "Paginated leaderboard with dropdown to switch between runs, wickets, and more",
   async execute(message) {

@@ -1,12 +1,14 @@
 export default function calculatePrice(stats) {
   const { runs, wickets, ducks } = stats;
 
-  // Base value: 50 coins
-  // Formula:
-  // +0.2 coins per run
-  // +2.5 coins per wicket
-  // -1.5 coins per duck
+  const basePrice = 50000;
 
-  let price = 50 + (runs * 0.2) + (wickets * 2.5) - (ducks * 1.5);
-  return Math.max(10, Math.round(price)); // Price should not go below 10
+  // Exponential contributions
+  const runImpact = Math.pow(runs, 1.15);        // Moderate growth
+  const wicketImpact = Math.pow(wickets * 5, 1.2); // Stronger impact per wicket
+  const duckPenalty = Math.pow(ducks + 1, 1.4) * 120; // Exponential penalty
+
+  const finalPrice = basePrice + runImpact + wicketImpact - duckPenalty;
+
+  return Math.max(0, Math.round(finalPrice)); // Minimum price: 5,000
 }

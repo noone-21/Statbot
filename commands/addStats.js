@@ -3,6 +3,7 @@ import parseRawStats from "../utils/parseRawStats.js";
 
 export default {
   name: "addstats",
+  aliases: ["addrawstats", "addraw"],
   description: "Add raw stats by replying to a message containing them",
   async execute(message) {
     if (!message.member.permissions.has('Administrator')) {

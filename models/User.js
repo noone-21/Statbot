@@ -6,7 +6,8 @@ const UserSchema = new mongoose.Schema({
   portfolio: [
     {
       playerId: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
-      quantity: { type: Number, default: 0 }
+      quantity: { type: Number, default: 0 },
+      buyPrice: { type: Number, default: 0 }
     }
   ]
 });
