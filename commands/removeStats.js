@@ -3,7 +3,7 @@ import parseRawStats from "../utils/parseRawStats.js";
 
 export default {
   name: "removestats",
-  aliases: ["removerawstats", "removeraw"],
+  aliases: ["removerawstats", "removeraw","rs"],
   usage: "+removestats [reply to raw stats message]",
   description: "Remove stats by replying to a message with raw stats",
   async execute(message) {

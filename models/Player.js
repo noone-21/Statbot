@@ -36,6 +36,7 @@ const PlayerSchema = new mongoose.Schema({
   stats: { type: statsSchema, default: () => ({}) },
   stock: {
     price: { type: Number, default: 50000 },
+    shares: { type: Number, default: 20 },
     history: { type: [Number], default: [] }
   }
 });

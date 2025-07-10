@@ -2,40 +2,28 @@ import User from "../models/User.js";
 import { EmbedBuilder } from "discord.js";
 
 export default {
-  name: "addbalance",
-  aliases: ["addbal", "givebalance"],
+  name: "removebalance",
+  aliases: ["removebal", "deductbalance"],
   usage: "<@user | userID | username> <amount>",
-  description: "Admin: Add balance to a user",
+  description: "Admin: Remove balance from a user",
   async execute(message, args) {
     if (message.author.id !== process.env.OWNER_ID) return;
 
     const [targetArg, amountStr] = args;
     const amount = parseInt(amountStr);
 
-if (!targetArg || isNaN(amount) || amount <= 0) {
-  return message.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor("#FF0000")
-        .setTitle("❌ Missing or Invalid Arguments")
-        .addFields(
-          { name: "Usage", value: "`+addbalance <@user | userID | username> <amount>`" },
-          { name: "Example", value: "`+addbalance krishna_51500 1000`" }
-        )
-        .setFooter({ text: "HandCricket Economy System" })
-    ]
-  });
-}
-
+    if (!targetArg || isNaN(amount) || amount <= 0) {
+      return message.reply("❌ Usage: `+removebalance <@user | userID | username> <amount>`");
+    }
 
     let targetUser = null;
 
-    // Mentioned
+    // 1. Mentioned
     if (message.mentions.users.size > 0) {
       targetUser = message.mentions.users.first();
     }
 
-    // ID or fuzzy name
+    // 2. ID or fuzzy name
     else {
       const query = targetArg.toLowerCase();
 
@@ -66,19 +54,19 @@ if (!targetArg || isNaN(amount) || amount <= 0) {
       (await User.findOne({ discordId: targetUser.id })) ||
       new User({ discordId: targetUser.id, balance: 0, portfolio: [] });
 
-    dbUser.balance += amount;
+    dbUser.balance = Math.max(0, dbUser.balance - amount);
     await dbUser.save();
 
     const formattedAmount = amount.toLocaleString();
     const formattedNewBalance = dbUser.balance.toLocaleString();
 
     const embed = new EmbedBuilder()
-      .setColor("#2ecc71")
-      .setTitle(`Added balance to ${targetUser.username}'s wallet 🏏`)
+      .setColor("#e74c3c")
+      .setTitle(`Deducted balance from ${targetUser.username}'s wallet 💸`)
       .addFields(
         {
           name: "Details",
-          value: `💰 Amount: ${formattedAmount} units`,
+          value: `🔻 Amount: ${formattedAmount} units`,
         },
         {
           name: "New Balance",

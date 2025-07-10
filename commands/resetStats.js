@@ -3,7 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "disc
 
 export default {
   name: "resetstats",
-  aliases: ["resetall", "resetseason", "newseason"],
+  aliases: ["resetall", "resetseason","rss"],
   usage: "+resetstats",
   description: "Reset all player stats and stock prices (new season)",
   async execute(message) {
@@ -83,11 +83,7 @@ export default {
               deliveries: 0,
               wickets: 0,
               ducks: 0
-            };
-            player.stock = {
-              price: 50,
-              history: []
-            };
+            }
             await player.save();
           }
           

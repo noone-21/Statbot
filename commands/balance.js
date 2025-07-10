@@ -14,7 +14,7 @@ const quotes = [
   "Time is money. — Benjamin Franklin",
   "Money can't buy happiness, but it can make you awfully comfortable while you're being miserable. — Clare Boothe Luce",
   "A penny saved is a penny earned. — Benjamin Franklin",
-  "The best things in life are free. The second best are very expensive. —Coco Chanel",
+  "The best things in life are free. The second best are very expensive. — Coco Chanel",
   "Money is like manure. You have to spread it around or it smells. — J. Paul Getty",
   "When I had money everyone called me brother. — Polish Proverb",
   "Money is a terrible master but an excellent servant. — P.T. Barnum",
@@ -22,38 +22,81 @@ const quotes = [
 
 export default {
   name: "balance",
-  aliases: ["bal", "coins", "checkbalance"],
+  aliases: ["bal", "coins", "checkbalance", "checkbal", "wallet"],
   description: "Check your coin balance",
-  async execute(message) {
-    const user =
-      (await User.findOne({ discordId: message.author.id })) ||
-      new User({ discordId: message.author.id, balance: 1000, portfolio: [] });
+  usage: "+balance [@user | userID | username]",
+  async execute(message, args) {
+    let user = null;
+    let target = null;
+
+    // 1. Mentioned user
+    if (message.mentions.users.size > 0) {
+      target = message.mentions.users.first();
+    }
+
+    // 2. User ID or fuzzy match
+    else if (args.length > 0) {
+      const query = args.join(" ").toLowerCase();
+
+      // Try fetching by ID
+      if (/^\d{17,19}$/.test(query)) {
+        try {
+          target = await message.client.users.fetch(query);
+        } catch {
+          console.log("Invalid ID or user not found. Trying fuzzy match...");
+        }
+      }
+
+      // Fallback: fuzzy match
+      if (!target) {
+        const members = await message.guild.members.fetch();
+        const match = members.find(
+          (m) =>
+            m.user.username.toLowerCase().includes(query) ||
+            m.displayName.toLowerCase().includes(query)
+        );
+        if (match) {
+          target = match.user;
+        } else {
+          return message.reply("❌ Couldn't find a user with that name or ID.");
+        }
+      }
+    }
+
+    // 3. Default to self
+    if (!target) {
+      target = message.author;
+    }
+
+    user = (await User.findOne({ discordId: target.id })) || new User({
+      discordId: target.id,
+      balance: 0,
+      portfolio: [],
+    });
     await user.save();
 
-    // Get a random quote
+    const formattedBalance = user.balance.toLocaleString();
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
-    // Format the balance with commas
-    const formattedBalance = user.balance.toLocaleString();
-
-    // Create an enhanced embedded message
-    // Create an enhanced embedded message
     const embed = new EmbedBuilder()
-      .setColor("#FFD700") // Gold color
+      .setColor("#FFD700")
       .setTitle("💰 Your Treasure Vault 💰")
-      .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+      .setThumbnail(target.displayAvatarURL({ dynamic: true }))
       .addFields({
-        name: "👤 Account Holder: ", value: `**${message.author.username}**`,
+        name: "👤 Account Holder:",
+        value: `**${target.username}**`,
       })
       .addFields({
-        name: "🪙 Current Balance: ",
+        name: "🪙 Current Balance:",
         value: `**${formattedBalance} coins**`,
       })
-      .addFields({ name: "💭 Words of Wisdom", value: `*"${randomQuote}"*` })
-      .setFooter({ text: "✨ Premium Economy System ✨" })
+      .addFields({
+        name: "💭 Words of Wisdom",
+        value: `*"${randomQuote}"*`,
+      })
+      .setFooter({ text: "✨ Premium Economy System ✨", iconURL: message.author.displayAvatarURL() })
       .setTimestamp();
 
-    // Send the embedded message
     message.reply({ embeds: [embed] });
   },
 };

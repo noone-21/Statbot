@@ -2,7 +2,7 @@ import Player from "../models/Player.js";
 
 export default {
   name: "market",
-  aliases: ["stockmarket", "marketplace", "exchange"],
+  aliases: ["stockmarket", "marketplace"],
   usage: "+market",
   description: "Display stock prices of all players",
   async execute(message) {

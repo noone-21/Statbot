@@ -1,71 +1,112 @@
 import User from "../models/User.js";
 import Player from "../models/Player.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+} from "discord.js";
 
 export default {
   name: "portfolio",
-  aliases: ["investments", "stocks", "holdings"],
-  usage: "+portfolio",
-  description: "View your portfolio",
-  async execute(message) {
-    const user = await User.findOne({ discordId: message.author.id }).populate(
+  aliases: ["investments", "stocks", "holdings", "port"],
+  usage: "+portfolio [@user | userID | username]",
+  description: "View your or another user's portfolio",
+  async execute(message, args) {
+    let userId = null;
+    let user = null;
+
+    // 1. Mentioned user
+    if (message.mentions.users.size > 0) {
+      user = message.mentions.users.first();
+      userId = user.id;
+    }
+    // 2. ID or fuzzy match
+    else if (args[0]) {
+      const query = args.join(" ").toLowerCase();
+
+      if (/^\d{17,19}$/.test(query)) {
+        try {
+          user = await message.client.users.fetch(query);
+          userId = user.id;
+        } catch {
+          console.log(`User ID ${query} not found, trying name match.`);
+        }
+      }
+
+      if (!user) {
+        const members = await message.guild.members.fetch();
+        const match = members.find(
+          (m) =>
+            m.user.username.toLowerCase().includes(query) ||
+            m.displayName.toLowerCase().includes(query)
+        );
+
+        if (match) {
+          user = match.user;
+          userId = user.id;
+        } else {
+          return message.reply("❌ Couldn't find a user with that name or ID.");
+        }
+      }
+    }
+    // 3. Default to self
+    else {
+      user = message.author;
+      userId = user.id;
+    }
+
+    const userDoc = await User.findOne({ discordId: userId }).populate(
       "portfolio.playerId"
     );
-    if (!user || user.portfolio.length === 0) {
+
+    if (!userDoc || userDoc.portfolio.length === 0) {
       return message.reply(
-        "❌ You don't own any stocks yet. Use the `buy` command to get started!"
+        "❌ This user doesn't own any stocks yet."
       );
     }
 
-    // Ensure we have usernames for all players in portfolio
-    for (const item of user.portfolio) {
+    for (const item of userDoc.portfolio) {
       if (!item.playerId.username && item.playerId.discordId) {
         try {
           const discordUser = await message.client.users.fetch(
             item.playerId.discordId
           );
           item.playerId.username = discordUser.username;
-        } catch (error) {
+        } catch {
           item.playerId.username = `User-${item.playerId.discordId}`;
         }
       }
     }
 
     const ITEMS_PER_PAGE = 5;
-    const totalPages = Math.ceil(user.portfolio.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(userDoc.portfolio.length / ITEMS_PER_PAGE);
     let currentPage = 0;
 
-    // Function to generate embed for a specific page
     function generateEmbed(page) {
       const startIndex = page * ITEMS_PER_PAGE;
       const endIndex = Math.min(
         startIndex + ITEMS_PER_PAGE,
-        user.portfolio.length
+        userDoc.portfolio.length
       );
-      const currentPageItems = user.portfolio.slice(startIndex, endIndex);
+      const currentPageItems = userDoc.portfolio.slice(startIndex, endIndex);
 
-      // Calculate page value and profit/loss
       let pageValue = 0;
       let pageProfitLoss = 0;
-
       const fields = [];
 
-      // Add each player with improved formatting
       currentPageItems.forEach((p, index) => {
         const currentPrice = p.playerId.stock.price;
         const stockValue = p.quantity * currentPrice;
-
-        // Use buyPrice from schema (total amount spent)
         const initialInvestment = p.buyPrice || 0;
 
-        // Calculate average purchase price per share
         const avgPurchasePrice =
           p.quantity > 0 ? initialInvestment : 0;
 
         const profitLoss = stockValue - initialInvestment;
         const profitLossPercent =
           avgPurchasePrice > 0
-            ? (((currentPrice*p.quantity) - avgPurchasePrice) / avgPurchasePrice) * 100
+            ? ((stockValue - avgPurchasePrice) / avgPurchasePrice) * 100
             : 0;
 
         pageValue += stockValue;
@@ -100,29 +141,25 @@ export default {
           inline: false,
         });
 
-        // Add separator between player entries (except after the last one)
         if (index < currentPageItems.length - 1) {
           fields.push({
             name: "━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            value: "", // Zero-width space
+            value: "",
             inline: false,
           });
         }
       });
 
-      // Calculate total portfolio value and profit/loss
       let totalValue = 0;
       let totalProfitLoss = 0;
-      user.portfolio.forEach((p) => {
+      userDoc.portfolio.forEach((p) => {
         const currentPrice = p.playerId.stock.price;
-        const purchasePrice = p.buyPrice;
         const stockValue = p.quantity * currentPrice;
-        const initialInvestment = purchasePrice;
+        const initialInvestment = p.buyPrice;
         totalValue += stockValue;
         totalProfitLoss += stockValue - initialInvestment;
       });
 
-      // Add separator before summaries
       if (currentPageItems.length > 0) {
         fields.push({
           name: "━━━━━━━━━━━━━━━━━━━━━━━━━━━",
@@ -130,11 +167,11 @@ export default {
           inline: false,
         });
       }
-      // Add total value as a separate field with more detail
+
       const totalPLEmoji = totalProfitLoss >= 0 ? "📈" : "📉";
       const totalPLText = totalProfitLoss >= 0 ? "Profit" : "Loss";
       const totalPLPercent =
-        user.portfolio.length > 0
+        userDoc.portfolio.length > 0
           ? (totalProfitLoss / (totalValue - totalProfitLoss)) * 100
           : 0;
 
@@ -155,7 +192,7 @@ export default {
         ].join("\n"),
         inline: true,
       });
-      // Add page summary
+
       const pagePLEmoji = pageProfitLoss >= 0 ? "📈" : "📉";
       const pagePLText = pageProfitLoss >= 0 ? "Profit" : "Loss";
       fields.push({
@@ -175,24 +212,16 @@ export default {
         inline: true,
       });
 
-      return {
-        title: `🗂️ ${message.author.username}'s Portfolio (Page ${
-          page + 1
-        }/${totalPages})`,
-        description: `Your investment portfolio contains ${user.portfolio.length} different stocks.`,
-        color: 0x00bfff,
-        fields,
-        thumbnail: {
-          url: message.author.displayAvatarURL({ dynamic: true }),
-        },
-        footer: {
-          text: "Use the buy and sell commands to manage your portfolio",
-        },
-        timestamp: new Date(),
-      };
+      return new EmbedBuilder()
+        .setTitle(`🗂️ ${user.username || message.author.username}'s Portfolio (Page ${page + 1}/${totalPages})`)
+        .setDescription(`Your investment portfolio contains ${userDoc.portfolio.length} different stocks.`)
+        .setColor(0x00bfff)
+        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+        .addFields(fields)
+        .setFooter({ text:  `✨ Requested by ${message.author.username}`,iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
     }
 
-    // Rest of the code remains the same
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("previous")
@@ -226,10 +255,13 @@ export default {
 
         await interaction.deferUpdate();
 
-        if (interaction.customId === "previous") {
-          if (currentPage > 0) currentPage--;
-        } else if (interaction.customId === "next") {
-          if (currentPage < totalPages - 1) currentPage++;
+        if (interaction.customId === "previous" && currentPage > 0) {
+          currentPage--;
+        } else if (
+          interaction.customId === "next" &&
+          currentPage < totalPages - 1
+        ) {
+          currentPage++;
         }
 
         row.components[0].setDisabled(currentPage === 0);

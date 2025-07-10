@@ -1,7 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 import Player from "../models/Player.js";
 
-// Helper function to format numbers with commas
 const formatNumber = (num) => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
@@ -10,58 +9,111 @@ export default {
   name: "price",
   aliases: ["stockprice", "currentprice", "marketinfo"],
   description: "Check the current stock price and market information of a player",
-  usage: "+price @user",
+  usage: "+price [@user | userID | username]",
   async execute(message, args) {
     try {
-      const mention = args[0];
-      if (!mention) {
-        return message.reply({
-          content: "❌ **Usage:** `+price @user`\nCheck a player's current stock price and market information.",
-          ephemeral: true
-        });
+      let userId = null;
+      let user = null;
+
+      // 1. Mentioned user
+      if (message.mentions.users.size > 0) {
+        user = message.mentions.users.first();
+        userId = user.id;
       }
 
-      const id = mention.replace(/[<@!>]/g, "");
-      const player = await Player.findOne({ discordId: id });
+      // 2. userID or fuzzy name
+      else if (args[0]) {
+        const query = args.join(" ").toLowerCase();
 
-      if (!player) return message.reply("❌ Player not found in the database.");
-      
-      // Get the user to obtain their avatar
-      const user = await message.client.users.fetch(id).catch(() => null);
-      if (!user) return message.reply("❌ Could not fetch user information.");
-      
-      // Calculate market cap
+        // If input is numeric userID
+        if (/^\d{17,19}$/.test(query)) {
+          try {
+            user = await message.client.users.fetch(query);
+            userId = user.id;
+          } catch {
+            console.log(`User ID ${query} not found, trying fuzzy match.`);
+          }
+        }
+
+        // Fuzzy search by username or nickname
+        if (!user) {
+          const members = await message.guild.members.fetch({ query, limit: 10 });
+          const match = members.find(
+            (m) =>
+              m.user.username.toLowerCase().includes(query) ||
+              m.displayName.toLowerCase().includes(query)
+          );
+
+          if (match) {
+            user = match.user;
+            userId = user.id;
+          } else {
+            // Last fallback: database scan by username
+            const allPlayers = await Player.find({ guildId: message.guild.id });
+
+            for (const player of allPlayers) {
+              if (!player.username && player.discordId) {
+                try {
+                  const fetchedUser = await message.client.users.fetch(player.discordId);
+                  player.username = fetchedUser.username;
+                } catch {
+                  player.username = `User-${player.discordId}`;
+                }
+              }
+            }
+
+            const playerMatch = allPlayers.find((p) =>
+              p.username?.toLowerCase().includes(query)
+            );
+
+            if (playerMatch) {
+              userId = playerMatch.discordId;
+              try {
+                user = await message.client.users.fetch(userId);
+              } catch {
+                return console.log("❌ Found player in DB but couldn't fetch their Discord profile.");
+              }
+            } else {
+              return console.log("❌ Couldn't find a user with that username or ID.");
+            }
+          }
+        }
+      }
+
+      // 3. No args = self
+      else {
+        user = message.author;
+        userId = user.id;
+      }
+
+      const player = await Player.findOne({ discordId: userId, guildId: message.guild.id });
+      if (!player) return message.reply("❌ Player not found!");
+
       const marketCap = player.stock.price * (player.stock.shares || 0);
-      
-      // Determine price change status (placeholder - implement actual tracking)
       const priceChange = player.stock.priceChange || 0;
       const changeSymbol = priceChange >= 0 ? "📈" : "📉";
       const changeColor = priceChange >= 0 ? '#2ecc71' : '#e74c3c';
-      
-      // Create an embed with the stock information
+
       const embed = new EmbedBuilder()
         .setColor(changeColor)
         .setTitle(`${user.username}'s Investment Portfolio`)
-        .setDescription(`📊 **Market Data for ${user.username}**`)
+        .setDescription(`📊 **Market Data for ${user.username}**\n\n`)
         .setThumbnail(user.displayAvatarURL({ dynamic: true }))
         .addFields(
           { name: '💰 Current Stock Price', value: `**${formatNumber(player.stock.price)}** coins`, inline: true },
-          { name: '\u200B', value: '\u200B', inline: true }, // Empty field for better layout
+          { name: '\u200B', value: '\u200B', inline: true },
           { name: '📈 Available Shares', value: `**${formatNumber(player.stock.shares || 0)}** shares`, inline: true },
           { name: `${changeSymbol} Price Change`, value: `**${priceChange >= 0 ? '+' : ''}${priceChange}%**`, inline: true },
-          { name: '\u200B', value: '\u200B', inline: true }, // Empty field for better layout
-        )
-        .addFields(
+          { name: '\u200B', value: '\u200B', inline: true },
           { name: '📝 Trading Information', value: 'Use `+buy <amount>` to purchase shares\nUse `+sell <amount>` to sell shares' }
         )
-        .setFooter({ text: "✨ Premium Economy System ✨" })
-        .setTimestamp()
-        .setDescription(`📊 **Market Data for ${user.username}**\n\n`)
-      
-      message.reply({ embeds: [embed] });
+        .setFooter({ text: "✨ Premium Economy System ✨", iconURL: message.author.displayAvatarURL() })
+        .setTimestamp();
+
+      return message.reply({ embeds: [embed] });
     } catch (error) {
       console.error("Error in price command:", error);
-      message.reply("❌ An error occurred while fetching stock information.");
+      return message.reply("❌ An error occurred while fetching stock information.");
     }
-  }
+  },
 };

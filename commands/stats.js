@@ -3,7 +3,7 @@ import { EmbedBuilder } from "discord.js";
 
 export default {
   name: "stats",
-  aliases: ["playerstats", "cricketstats", "handcricketstats"],
+  aliases: ["us", "mystats", "me"],
   usage: "+stats [@user | userID | username]",
   description: "View detailed stats of yourself or another player",
   async execute(message, args) {
@@ -123,49 +123,64 @@ export default {
     const bowlingInnings = s.bowlInnings || 0;
 
     // Rating Calculations
-    // BATTING RATING
-    const batScore =
-      s.runs / 2 + // Runs
-      parseFloat(sr) * 0.75 + // Strike Rate
-      fifties * 5 + // Bonus for 50s
-      hundreds * 10 + // Bonus for 100s
-      (parseFloat(batAvg) || 0) * 2 - // Batting avg
-      s.ducks * 4; // Duck penalty
+ // ⚾ BATTING RATING (unchanged)
+const batScore =
+  s.runs / 2.5 +
+  parseFloat(sr) * 0.6 +
+  fifties * 5 +
+  hundreds * 10 +
+  (parseFloat(batAvg) || 0) * 1.7 -
+  s.ducks * 4;
 
-    const batRating = Math.min(99, Math.round(60 + batScore / 10)); // Base 60, scaled
+const batRating = Math.min(99, Math.round(60 + batScore / 11.5));
 
-    // BOWLING RATING
-    const bowlScore =
-      s.wickets * 4 +
-      (s.ballsBowled > 0 ? (18 - parseFloat(eco)) * 5 : 0) + // Economy reward
-      (s.wickets > 0 ? (35 - parseFloat(bowlAvg)) * 3 : 0) + // Bowling avg reward
-      threeW * 4 +
-      fiveW * 6 -
-      s.conceded / 10; // Penalty for conceding runs
+// 🎯 BOWLING RATING (increased slightly more)
+const bowlScore =
+  s.wickets * 6.5 +  // more emphasis on wickets
+  (s.ballsBowled > 0 ? (18 - parseFloat(eco)) * 5.5 : 0) +
+  (s.wickets > 0 ? (35 - parseFloat(bowlAvg)) * 3.5 : 0) +
+  threeW * 5 +
+  fiveW * 7 -
+  s.conceded / 10;
 
-    const bowlRating = Math.min(99, Math.round(60 + bowlScore / 10)); // Base 60, scaled
+const bowlRating = Math.min(99, Math.round(60 + bowlScore / 5)); // faster growth
 
     // ALL-ROUNDER RATING
     const allRounder = Math.min(99, Math.round((batRating + bowlRating) / 2));
 
     //--------------------------------
 
-    // Final Impact Score
-    const impactScoreRaw =
-      Math.pow(s.runs, 0.6) +
-      Math.pow(s.wickets * 5, 0.8) +
-      fifties * 12 +
-      hundreds * 25 +
-      (batAvg > 2 ? Math.pow(batAvg, 1.2) : -Math.pow(2 - batAvg, 2)) +
-      (sr > 80 ? Math.pow(sr / 10, 1.3) : -Math.pow((80 - sr) / 10, 2)) +
-      (eco < 7 ? Math.pow(8 - eco, 1.5) : -Math.pow(eco - 7, 1.5)) +
-      (bowlAvg < 25
-        ? Math.pow(30 - bowlAvg, 1.2)
-        : -Math.pow(bowlAvg - 25, 1.2)) -
-      Math.pow(s.ducks, 1.3) * 5;
+   const hasStats =
+  s.runs > 0 ||
+  s.wickets > 0 ||
+  s.ducks > 0 ||
+  batAvg > 0 ||
+  sr > 0 ||
+  eco > 0 ||
+  bowlAvg > 0 ||
+  fifties > 0 ||
+  hundreds > 0;
 
-    // Ensure impact score is never negative
-    const impactScore = Math.round(Math.max(0, impactScoreRaw));
+let impactScoreRaw = 0;
+
+if (hasStats) {
+  impactScoreRaw =
+    Math.pow(s.runs, 0.5) +                                // Lower run impact
+    Math.pow(s.wickets * 4, 0.7) +                         // Less explosive bowling
+    fifties * 8 +                                          // Reduced weight
+    hundreds * 15 +                                        // Reduced weight
+    (batAvg > 2 ? Math.pow(batAvg, 1.05) : -Math.pow(2 - batAvg, 1.5)) +
+    (sr > 80 ? Math.pow(sr / 10, 1.1) : -Math.pow((80 - sr) / 10, 1.5)) +
+    (eco < 7 ? Math.pow(8 - eco, 1.2) : -Math.pow(eco - 7, 1.3)) +
+    (bowlAvg < 25
+      ? Math.pow(30 - bowlAvg, 1.1)
+      : -Math.pow(bowlAvg - 25, 1.1)) -
+    Math.pow(s.ducks, 1.2) * 4;                            // Slightly lower penalty
+}
+
+
+// Final impact score: clamp to 0
+const impactScore = Math.round(Math.max(0, impactScoreRaw));
 
     //PLAYER ROLE
     let role = "";
@@ -227,7 +242,7 @@ export default {
       )
       .setThumbnail(user.displayAvatarURL({ dynamic: true }))
       .setColor(0x00b0f4)
-      .setFooter({ text: "HandCricket Bot • Season 1" })
+      .setFooter({ text:  `✨ Requested by ${message.author.username}`,iconURL: message.author.displayAvatarURL() })
       .setTimestamp();
 
     message.channel.send({ embeds: [embed] });

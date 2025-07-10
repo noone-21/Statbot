@@ -1,9 +1,10 @@
 import Player from "../models/Player.js";
 import parseRawStats from "../utils/parseRawStats.js";
+import calculatePrice from "../utils/calculatePrice.js";
 
 export default {
   name: "addstats",
-  aliases: ["addrawstats", "addraw"],
+  aliases: ["addrawstats", "addraw", "as"],
   description: "Add raw stats by replying to a message containing them",
   async execute(message) {
     if (!message.member.permissions.has('Administrator')) {
@@ -50,7 +51,7 @@ export default {
       // }
 
       for (const key of Object.keys(entry)) {
-        if (["discordId", "recentMatches","highScore"].includes(key)) continue;
+        if (["discordId", "recentMatches", "highScore"].includes(key)) continue;
         player.stats[key] += entry[key];
       }
 
@@ -62,14 +63,19 @@ export default {
         player.stats.recentMatches.shift();
       }
       player.stats.recentMatches.push(newMatch)
-      
+
       // Update high score and highest wickets
-      if(player.stats.highScore < entry.runs) {
+      if (player.stats.highScore < entry.runs) {
         player.stats.highScore = entry.runs;
       }
-      if(player.stats.highestWickets < entry.wickets) {
+      if (player.stats.highestWickets < entry.wickets) {
         player.stats.highestWickets = entry.wickets;
       }
+
+      const newPrice = Math.round(calculatePrice(player.stats,player.stock.price));
+      player.stock.history.push(player.stock.price);
+      player.stock.price = newPrice;
+
 
       await player.save();
     }

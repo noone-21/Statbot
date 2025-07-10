@@ -55,3 +55,5 @@ client.on("messageCreate", async message => {
 });
 
 client.login(process.env.TOKEN);
+
+global.client = client;
