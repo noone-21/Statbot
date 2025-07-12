@@ -87,17 +87,24 @@ export default {
             try {
               targetUser = await message.client.users.fetch(userId);
             } catch {
-              return message.reply("❌ Found player in DB but couldn't fetch their Discord profile.");
+              const embed = new EmbedBuilder()
+              .setColor(0xFF0000)
+              .setDescription("❌ Found player but couldn't fetch their Discord profile.");
+
             }
           } else {
-            return message.reply("❌ Couldn't find a player with that username or ID.");
+            const embed = new EmbedBuilder()
+            .setColor(0xFF0000)
+            .setDescription("❌ Couldn't find a player with that username or ID.");
           }
         }
       }
     }
 
     if (!userId) {
-      return message.reply("❌ You must specify a valid user to buy shares for.");
+      const embed = new EmbedBuilder()
+      .setColor(0xFF0000)
+      .setDescription("❌ You must specify a valid user to buy shares for.");
     }
 
     const player = await Player.findOne({ discordId: userId, guildId: message.guild.id });
@@ -107,7 +114,12 @@ export default {
           new EmbedBuilder()
             .setColor("#FF0000")
             .setTitle("❌ Player Not Found")
-            .setDescription("The specified player was not found in our database."),
+            .setDescription("Couldn't find the specified player.")
+            .setFooter({
+          text: `✨ Requested by ${message.author.username} `,
+          iconURL: message.author.displayAvatarURL(),
+        })
+        .setTimestamp(),
         ],
       });
     }
@@ -121,7 +133,12 @@ export default {
             .setTitle("❌ Not Enough Shares")
             .setDescription(
               `<@${userId}> only has **${availableShares}** shares available. Please reduce your purchase amount.`
-            ),
+            )
+            .setFooter({
+          text: `✨ Requested by ${message.author.username} `,
+          iconURL: message.author.displayAvatarURL(),
+        })
+        .setTimestamp(),
         ],
       });
     }
@@ -148,14 +165,21 @@ if (alreadyOwned + amount > 4) {
     `You can only own **4 shares per player**, so you can only buy **${remaining}** more.`
   );
 
-  return message.reply({
-    embeds: [
-      new EmbedBuilder()
-        .setColor("#FF0000")
-        .setTitle("❌ Max Ownership Limit")
-        .setDescription(msgLines.join("\n")),
-    ],
-  });
+  const member = message.mentions.members.first() || message.member;
+  const user = member.user;
+
+const embed = new EmbedBuilder()
+  .setColor(0xFF0000)
+  .setTitle("❌ Max Ownership Limit")
+  .setDescription(msgLines.join("\n"))
+  .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+  .setFooter({
+          text: `✨ Requested by ${message.author.username} `,
+          iconURL: message.author.displayAvatarURL(),
+        })
+        .setTimestamp();
+
+return message.reply({ embeds: [embed] });
 }
 
 
@@ -165,7 +189,12 @@ if (alreadyOwned + amount > 4) {
           new EmbedBuilder()
             .setColor("#FF0000")
             .setTitle("❌ Insufficient Balance")
-            .setDescription(`You need ${totalCost} coins but only have ${user.balance}.`),
+            .setDescription(`You need ${totalCost} coins but only have ${user.balance}.`)
+            .setFooter({
+          text: `✨ Requested by ${message.author.username} `,
+          iconURL: message.author.displayAvatarURL(),
+        })
+        .setTimestamp(),
         ],
       });
     }

@@ -72,7 +72,7 @@ export default {
             try {
               targetUser = await message.client.users.fetch(userId);
             } catch {
-              return message.reply("❌ Found user in DB but couldn't fetch Discord profile.");
+              return message.reply("❌ Found user but couldn't fetch Discord profile.");
             }
           } else {
             return message.reply("❌ Player not found.");

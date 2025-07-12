@@ -46,7 +46,7 @@ export default {
           const allPlayers = await Player.find({ guildId: message.guild.id });
 
 
-          
+
 
           // Fetch usernames for all players
           for (const player of allPlayers) {
@@ -123,64 +123,66 @@ export default {
     const bowlingInnings = s.bowlInnings || 0;
 
     // Rating Calculations
- // ⚾ BATTING RATING (unchanged)
-const batScore =
-  s.runs / 2.5 +
-  parseFloat(sr) * 0.6 +
-  fifties * 5 +
-  hundreds * 10 +
-  (parseFloat(batAvg) || 0) * 1.7 -
-  s.ducks * 4;
+    // 🎯 BATTING RATING
+    const batScore =
+      s.runs / 2.5 +                       // Runs contribute moderately
+      parseFloat(sr) * 0.6 +              // Strike rate with moderate impact
+      fifties * 5 +                       // Reward for 50s
+      hundreds * 10 +                     // Higher reward for 100s
+      (parseFloat(batAvg) || 0) * 1.7 -   // Batting average helps boost score
+      s.ducks * 4;                        // Penalty for ducks
 
-const batRating = Math.min(99, Math.round(60 + batScore / 11.5));
+    const batRating = Math.min(99, Math.round(60 + batScore / 11.5)); // Base 60, scaled growth
 
-// 🎯 BOWLING RATING (increased slightly more)
-const bowlScore =
-  s.wickets * 6.5 +  // more emphasis on wickets
-  (s.ballsBowled > 0 ? (18 - parseFloat(eco)) * 5.5 : 0) +
-  (s.wickets > 0 ? (35 - parseFloat(bowlAvg)) * 3.5 : 0) +
-  threeW * 5 +
-  fiveW * 7 -
-  s.conceded / 10;
 
-const bowlRating = Math.min(99, Math.round(60 + bowlScore / 5)); // faster growth
+    // 🎯 BOWLING RATING
+    const bowlScore =
+      s.wickets * 6.5 +                                         // Wickets heavily weighted
+      (s.ballsBowled > 0 ? (18 - parseFloat(eco)) * 5.5 : 0) +  // Economy impact (better if < 6)
+      (s.wickets > 0 ? (35 - parseFloat(bowlAvg)) * 3.5 : 0) +  // Bowling avg helps if lower
+      threeW * 5 +                                              // Bonus for 3-wicket hauls
+      fiveW * 7 -                                               // Bonus for 5-wicket hauls
+      s.conceded / 10;                                          // Penalty for runs conceded
+
+    const bowlRating = Math.min(99, Math.round(60 + bowlScore / 5)); // Base 60, faster growth
+
 
     // ALL-ROUNDER RATING
     const allRounder = Math.min(99, Math.round((batRating + bowlRating) / 2));
 
     //--------------------------------
 
-   const hasStats =
-  s.runs > 0 ||
-  s.wickets > 0 ||
-  s.ducks > 0 ||
-  batAvg > 0 ||
-  sr > 0 ||
-  eco > 0 ||
-  bowlAvg > 0 ||
-  fifties > 0 ||
-  hundreds > 0;
+    const hasStats =
+      s.runs > 0 ||
+      s.wickets > 0 ||
+      s.ducks > 0 ||
+      batAvg > 0 ||
+      sr > 0 ||
+      eco > 0 ||
+      bowlAvg > 0 ||
+      fifties > 0 ||
+      hundreds > 0;
 
-let impactScoreRaw = 0;
+    let impactScoreRaw = 0;
 
-if (hasStats) {
-  impactScoreRaw =
-    Math.pow(s.runs, 0.5) +                                // Lower run impact
-    Math.pow(s.wickets * 4, 0.7) +                         // Less explosive bowling
-    fifties * 8 +                                          // Reduced weight
-    hundreds * 15 +                                        // Reduced weight
-    (batAvg > 2 ? Math.pow(batAvg, 1.05) : -Math.pow(2 - batAvg, 1.5)) +
-    (sr > 80 ? Math.pow(sr / 10, 1.1) : -Math.pow((80 - sr) / 10, 1.5)) +
-    (eco < 7 ? Math.pow(8 - eco, 1.2) : -Math.pow(eco - 7, 1.3)) +
-    (bowlAvg < 25
-      ? Math.pow(30 - bowlAvg, 1.1)
-      : -Math.pow(bowlAvg - 25, 1.1)) -
-    Math.pow(s.ducks, 1.2) * 4;                            // Slightly lower penalty
-}
+    if (hasStats) {
+      impactScoreRaw =
+        Math.pow(s.runs, 0.5) +                                // Lower run impact
+        Math.pow(s.wickets * 4, 0.7) +                         // Less explosive bowling
+        fifties * 8 +                                          // Reduced weight
+        hundreds * 15 +                                        // Reduced weight
+        (batAvg > 2 ? Math.pow(batAvg, 1.05) : -Math.pow(2 - batAvg, 1.5)) +
+        (sr > 80 ? Math.pow(sr / 10, 1.1) : -Math.pow((80 - sr) / 10, 1.5)) +
+        (eco < 7 ? Math.pow(8 - eco, 1.2) : -Math.pow(eco - 7, 1.3)) +
+        (bowlAvg < 25
+          ? Math.pow(30 - bowlAvg, 1.1)
+          : -Math.pow(bowlAvg - 25, 1.1)) -
+        Math.pow(s.ducks, 1.2) * 4;                            // Slightly lower penalty
+    }
 
 
-// Final impact score: clamp to 0
-const impactScore = Math.round(Math.max(0, impactScoreRaw));
+    // Final impact score: clamp to 0
+    const impactScore = Math.round(Math.max(impactScoreRaw));
 
     //PLAYER ROLE
     let role = "";
@@ -242,7 +244,7 @@ const impactScore = Math.round(Math.max(0, impactScoreRaw));
       )
       .setThumbnail(user.displayAvatarURL({ dynamic: true }))
       .setColor(0x00b0f4)
-      .setFooter({ text:  `✨ Requested by ${message.author.username}`,iconURL: message.author.displayAvatarURL() })
+      .setFooter({ text: `✨ Requested by ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
       .setTimestamp();
 
     message.channel.send({ embeds: [embed] });

@@ -43,11 +43,16 @@ export default {
         );
 
         if (match) {
-          user = match.user;
-          userId = user.id;
-        } else {
-          return message.reply("❌ Couldn't find a user with that name or ID.");
-        }
+  user = match.user;
+  userId = user.id;
+} else {
+  const embed = new EmbedBuilder()
+  .setColor(0xFF0000)
+  .setTitle("User not found")
+  .setDescription("❌ Couldn't find a user with that name or ID.");
+
+return message.reply({ embeds: [embed] });
+}
       }
     }
     // 3. Default to self
@@ -60,11 +65,17 @@ export default {
       "portfolio.playerId"
     );
 
-    if (!userDoc || userDoc.portfolio.length === 0) {
-      return message.reply(
-        "❌ This user doesn't own any stocks yet."
-      );
-    }
+  if (!userDoc || userDoc.portfolio.length === 0) {
+  const user = message.mentions.users.first() || message.author;
+
+const embed = new EmbedBuilder()
+  .setColor(0xFF0000)
+  .setTitle(`🗂️ ${user.username}'s Portfolio`)
+  .setDescription("❌Doesn't own any stocks.")
+  .setThumbnail(user.displayAvatarURL({ dynamic: true }));
+
+return message.reply({ embeds: [embed] });
+  }
 
     for (const item of userDoc.portfolio) {
       if (!item.playerId.username && item.playerId.discordId) {
@@ -242,7 +253,7 @@ export default {
 
     if (totalPages > 1) {
       const collector = msg.createMessageComponentCollector({
-        time: 5 * 60 * 1000,
+        time: 60000, // 1 min
       });
 
       collector.on("collect", async (interaction) => {
@@ -275,8 +286,8 @@ export default {
 
       collector.on("end", () => {
         row.components.forEach((button) => button.setDisabled(true));
-        msg.edit({ components: [row] }).catch(() => {});
+        msg.edit({ components: [] }).catch(() => {});
       });
     }
-  },
-};
+  }
+}

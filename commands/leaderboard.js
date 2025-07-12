@@ -5,7 +5,7 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
   EmbedBuilder,
-  AttachmentBuilder
+  AttachmentBuilder,
 } from "discord.js";
 import { generateLeaderboardImage } from "../utils/generateLeaderboardImage.js";
 
@@ -57,18 +57,23 @@ export default {
 
     const fetchPlayers = async (type) => {
       const sortField = FIELD_MAPPING[type] || `stats.${type}`;
-      const allPlayers = await Player.find({ guildId: message.guild.id })
-        .sort({ [sortField]: -1 });
+      const allPlayers = await Player.find({ guildId: message.guild.id }).sort({
+        [sortField]: -1,
+      });
 
-      let players = allPlayers.filter(p => (p.stats?.[type] || 0) > 0);
+      const players = allPlayers.filter((p) => (p.stats?.[type] || 0) > 0);
 
       let rank = 1;
       for (const p of players) {
         try {
-          const user = message.client.users.cache.get(p.discordId)
-            || await message.client.users.fetch(p.discordId);
+          const user =
+            message.client.users.cache.get(p.discordId) ||
+            (await message.client.users.fetch(p.discordId));
           p.username = user.username;
-          p.avatarURL = user.displayAvatarURL({ extension: "png", size: 64 });
+          p.avatarURL = user.displayAvatarURL({
+            extension: "png",
+            size: 64,
+          });
         } catch {
           p.username = `User-${p.discordId}`;
           p.avatarURL = null;
@@ -86,37 +91,11 @@ export default {
       const end = start + perPage;
       const players = allPlayers.slice(start, end);
 
-      // Fill up empty rows with placeholders
       while (players.length < perPage) {
         players.push(null);
       }
 
       return players;
-    };
-
-    const buildMessage = async () => {
-      const imageBuffer = await generateLeaderboardImage(
-        getPagePlayers(),
-        selectedType,
-        TYPES[selectedType],
-        perPage
-      );
-
-      const attachment = new AttachmentBuilder(imageBuffer, { name: "leaderboard.png" });
-
-      const embed = new EmbedBuilder()
-        .setImage("attachment://leaderboard.png")
-        .setColor(0x2ecc71)
-        .setFooter({
-          text: `Requested by ${message.author.username}`,
-          iconURL: message.author.displayAvatarURL()
-        });
-
-      return {
-        embeds: [embed],
-        files: [attachment],
-        components: getComponents()
-      };
     };
 
     const getComponents = () => [
@@ -140,37 +119,70 @@ export default {
             Object.entries(TYPES).map(([key, label]) => ({
               label,
               value: key,
-              default: key === selectedType
+              default: key === selectedType,
             }))
           )
-      )
+      ),
     ];
+
+    const buildMessage = async () => {
+      const imageBuffer = await generateLeaderboardImage(
+        getPagePlayers(),
+        selectedType,
+        TYPES[selectedType],
+        perPage
+      );
+
+      const attachment = new AttachmentBuilder(imageBuffer, {
+        name: "leaderboard.png",
+      });
+
+      const embed = new EmbedBuilder()
+        .setImage("attachment://leaderboard.png")
+        .setColor(0x2ecc71)
+        .setFooter({
+          text: `Requested by ${message.author.username}`,
+          iconURL: message.author.displayAvatarURL(),
+        });
+
+      return {
+        embeds: [embed],
+        files: [attachment],
+        components: getComponents(),
+      };
+    };
 
     await loadingMessage.delete().catch(() => {});
     const sent = await message.channel.send(await buildMessage());
 
-    const collector = sent.createMessageComponentCollector({ time: 120_000 });
+    const collector = sent.createMessageComponentCollector({
+      time: 120_000,
+    });
 
     collector.on("collect", async (i) => {
       if (i.user.id !== message.author.id) {
         return i.reply({
           content: "You can't interact with this leaderboard.",
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
+      // ✅ Immediately defer to prevent interaction timeout
+      await i.deferUpdate();
+
+      // 🔁 Button
       if (i.isButton()) {
         if (i.customId === "next") page++;
         if (i.customId === "prev") page--;
       }
 
+      // 🧠 Dropdown
       if (i.isStringSelectMenu() && i.customId === "selectType") {
         selectedType = i.values[0];
         page = 0;
         allPlayers = await fetchPlayers(selectedType);
       }
 
-      await i.deferUpdate();
       await sent.edit(await buildMessage());
     });
 
@@ -181,5 +193,5 @@ export default {
         console.log("Failed to disable components:", err);
       }
     });
-  }
+  },
 };
